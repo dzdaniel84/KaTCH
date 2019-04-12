@@ -326,6 +326,8 @@ private:
 
             if ( u._node_it == _destination ) break;
 
+            //printf("BW Predecessor size: %d\n", u._bw_predecessors);
+
             for ( auto& pred : u._bw_predecessors )
             {
                 const EdgeIterator e = pred._edge_it;

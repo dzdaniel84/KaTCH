@@ -84,13 +84,22 @@ int main(int argc, char** argv)
     double total_rel_error_expand = 0.0;
 
     double total_route_extraction_and_expansion_time = 0.0;
+    
+    double total_one_to_one_time = 0.0;
+    double total_up_down_time = 0.0;
+    double total_expand_time = 0.0;
 
     auto t1 = katch::util::time_stamp();
 
     for ( const auto& demand : demands )
     {
+        auto t_one_to_one_start = katch::util::time_stamp();
+
         // obtain travel time from start to destination
         const double t_arr = query.one_to_one(demand._start, demand._destination, demand._t_dep);
+
+        auto t_one_to_one_done = katch::util::time_stamp();
+        total_one_to_one_time += katch::util::get_duration_in_seconds(t_one_to_one_start, t_one_to_one_done);
 
         // compute absolute and relative errors of obtained travel time
         const double abs_error = fabs(t_arr - demand._t_arr);
@@ -106,11 +115,15 @@ int main(int argc, char** argv)
         // obtain up-down-path from start to destination (requires katch::TchEaQuery::one_to_one called first)
         const katch::TchEaQuery::Path up_down_path = query.get_up_down_path(demand._destination);
 
+        auto t_up_down_done = katch::util::time_stamp();
+        total_up_down_time += katch::util::get_duration_in_seconds(t_expand_begin, t_up_down_done);
+
         // expand up-down-path to obtain path in the original road network
         const katch::TchEaQuery::Path original_path = query.expand_path(up_down_path);
 
         auto t_expand_end = katch::util::time_stamp();
         total_route_extraction_and_expansion_time += katch::util::get_duration_in_seconds(t_expand_begin, t_expand_end);
+        total_expand_time += katch::util::get_duration_in_seconds(t_up_down_done, t_expand_end);
 
         // compute absolute and relative errors of the travel time of the expanded path
         const double t_arr_expand = original_path.get_t_arr(original_path.get_n_edges());
@@ -128,6 +141,10 @@ int main(int argc, char** argv)
 
     KATCH_CONTINUE_STATUS(" OK\n");
 
+    KATCH_STATUS("avg. one to one running time = " << (total_one_to_one_time / double(demands.size())) *1000.0) << " msec\n");
+    KATCH_STATUS("avg. up down running time = " << (total_up_down_time / double(demands.size())) *1000.0) << " msec\n");
+    KATCH_STATUS("avg. expand running time = " << (total_expand_time / double(demands.size())) *1000.0) << " msec\n");
+    
     KATCH_STATUS("avg. running time (including route extraction) = " << ((katch::util::get_duration_in_seconds(t1, t2) / double(demands.size())) *1000.0) << " msec\n");
     KATCH_STATUS("avg. running time (without route extraction)   = " << (((katch::util::get_duration_in_seconds(t1, t2) - total_route_extraction_and_expansion_time) / double(demands.size())) *1000.0) << " msec\n");
     KATCH_STATUS("\n");
